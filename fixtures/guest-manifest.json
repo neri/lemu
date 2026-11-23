@@ -1,0 +1,16 @@
+{
+  "cases": [
+    {
+      "path": "fixtures/hello.elf.hex",
+      "sha256": "6366053b7d23da893b691039b9bd84204dff6d8512a7e1aea1f824e225153b25"
+    },
+    {
+      "path": "plum/examples/support/simd/bench.bin.hex",
+      "sha256": "36d387bcbe2244ae30a20f89cd8e98b00897152de74b7caf82cf1fcd6911c008"
+    },
+    {
+      "path": "plum/examples/support/simd/sse-calc.elf.hex",
+      "sha256": "64763341c21cc94c35c7974594b1f5eb95c4b2d2b1f2c0b0e6b0af7e3302018b"
+    }
+  ]
+}

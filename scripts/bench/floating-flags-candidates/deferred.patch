@@ -1,0 +1,263 @@
+--- a/plum/src/simd/exec.rs
++++ b/plum/src/simd/exec.rs
+@@ -349,6 +349,7 @@
+     // Any MMX register operand: TOP = 0 and all tags valid afterwards.
+     let mmx = plan.reg == SimdRegKind::Mm || (plan.rm == SimdRegKind::Mm && rm_reg.is_some());
+     let mut env = Env::new(state.simd.mxcsr);
++    env.defer_precision = true;
+ 
+     if let Kind::Int(int) = plan.kind {
+         with_register(state, plan.reg, reg, |dst| apply_int(dst, &src, int));
+@@ -431,6 +432,7 @@
+                 if !unmasked_ok && value & MXCSR_EXCEPTION_MASKS != MXCSR_EXCEPTION_MASKS {
+                     return Err(SimdFault::Unimplemented);
+                 }
++                state.simd.clear_pending();
+                 state.simd.mxcsr = value;
+             }
+             EMMS => mmx::emms(&mut state.fpu),
+@@ -608,6 +610,11 @@
+         }
+     }
+     state.simd.mxcsr |= env.flags;
++    if state.simd.mxcsr & float::PE != 0 {
++        state.simd.clear_pending();
++    } else if let Some(pending) = env.pending {
++        state.simd.defer_precision(pending);
++    }
+     if mmx {
+         mmx::enter(&mut state.fpu);
+     }
+@@ -630,7 +637,7 @@
+             mmx::enter(&mut state.fpu);
+         }
+         MOVNTI_Md_Gd => bytes[..4].copy_from_slice(&read_gpr(state, reg).to_le_bytes()),
+-        STMXCSR_Md => bytes[..4].copy_from_slice(&state.simd.mxcsr.to_le_bytes()),
++        STMXCSR_Md => bytes[..4].copy_from_slice(&state.simd.mxcsr().to_le_bytes()),
+         _ => unreachable!("{op:?} is not a store"),
+     }
+     bytes
+--- a/plum/src/simd/float.rs
++++ b/plum/src/simd/float.rs
+@@ -111,15 +111,69 @@
+     }
+ }
+ 
++/// One successful normal-result host operation, retained for PE only.
++#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++pub(crate) struct PendingPrecision {
++    f: Format,
++    op: Arith,
++    a: [u64; 4],
++    b: [u64; 4],
++    r: [u64; 4],
++    n: usize,
++}
++impl PendingPrecision {
++    pub(crate) fn inexact(&self) -> bool {
++        (0..self.n).any(|i| {
++            let (a, b, r) = (self.a[i], self.b[i], self.r[i]);
++            if self.f == F32 {
++                let (x, y, r) = (
++                    f32::from_bits(a as u32),
++                    f32::from_bits(b as u32),
++                    f32::from_bits(r as u32),
++                );
++                match self.op {
++                    Arith::Add | Arith::Sub => {
++                        let y = if self.op == Arith::Sub { -y } else { y };
++                        let yy = r - x;
++                        (x - (r - yy)) + (y - yy) != 0.0
++                    }
++                    Arith::Mul => f64::from(x) * f64::from(y) != f64::from(r),
++                    Arith::Div => f64::from(r) * f64::from(y) != f64::from(x),
++                    Arith::Sqrt => f64::from(r) * f64::from(r) != f64::from(y),
++                }
++            } else {
++                let (x, y, r) = (f64::from_bits(a), f64::from_bits(b), f64::from_bits(r));
++                match self.op {
++                    Arith::Add | Arith::Sub => {
++                        let y = if self.op == Arith::Sub { -y } else { y };
++                        let yy = r - x;
++                        (x - (r - yy)) + (y - yy) != 0.0
++                    }
++                    Arith::Mul => !exact_product(F64, a, b, self.r[i]),
++                    Arith::Div => !exact_product(F64, self.r[i], b, a),
++                    Arith::Sqrt => !exact_product(F64, self.r[i], self.r[i], b),
++                }
++            }
++        })
++    }
++}
++
+ /// Rounding and flag state of one instruction: MXCSR in, flags out.
+ pub(crate) struct Env {
+     mxcsr: u32,
+     pub(crate) flags: u32,
++    pub(crate) defer_precision: bool,
++    pub(crate) pending: Option<PendingPrecision>,
+ }
+ 
+ impl Env {
+     pub(crate) const fn new(mxcsr: u32) -> Self {
+-        Self { mxcsr, flags: 0 }
++        Self {
++            mxcsr,
++            flags: 0,
++            defer_precision: false,
++            pending: None,
++        }
+     }
+     /// 0 nearest, 1 down, 2 up, 3 toward zero.
+     const fn rc(&self) -> u32 {
+@@ -361,6 +415,22 @@
+                 let precision_known = env.mxcsr & super::MXCSR_EXCEPTION_MASKS
+                     == super::MXCSR_EXCEPTION_MASKS
+                     && (env.mxcsr | env.flags) & PE != 0;
++                if env.defer_precision
++                    && !precision_known
++                    && env.mxcsr & super::MXCSR_EXCEPTION_MASKS == super::MXCSR_EXCEPTION_MASKS
++                {
++                    env.pending = Some(PendingPrecision {
++                        f: $f,
++                        op,
++                        n: N,
++                        a: core::array::from_fn(|i| if i < N { u64::from(a[i]) } else { 0 }),
++                        b: core::array::from_fn(|i| if i < N { u64::from(b[i]) } else { 0 }),
++                        r: core::array::from_fn(
++                            |i| if i < N { u64::from(r[i].to_bits()) } else { 0 },
++                        ),
++                    });
++                    return Some(r.map(<$t>::to_bits));
++                }
+                 let inexact = !precision_known
+                     && match op {
+                         // TwoSum: the rounding error of r = x + y, exactly.
+@@ -390,6 +460,7 @@
+                 a: [$bits; N],
+                 b: [$bits; N],
+             ) -> [$bits; N] {
++                env.defer_precision = false;
+                 let fast = env.fast();
+                 core::array::from_fn(|i| {
+                     match fast.then(|| host::<1>(env, op, [a[i]], [b[i]])).flatten() {
+--- a/plum/src/simd/mod.rs
++++ b/plum/src/simd/mod.rs
+@@ -31,11 +31,13 @@
+ ///
+ /// Keep the register bank first and 16-byte aligned even when preceding
+ /// fields in `ProcessorState` change. Each register has a 16-byte stride.
+-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
++#[derive(Debug, Clone, Copy)]
+ #[repr(C, align(16))]
+ pub struct SimdState {
+     pub(crate) xmm: [Xmm; 8],
+     pub(crate) mxcsr: u32,
++    pending: [Option<float::PendingPrecision>; 4],
++    pending_len: usize,
+ }
+ 
+ const _: () = {
+@@ -49,6 +51,8 @@
+         Self {
+             xmm: [[0; 16]; 8],
+             mxcsr: MXCSR_RESET,
++            pending: [None; 4],
++            pending_len: 0,
+         }
+     }
+ }
+@@ -69,6 +73,29 @@
+     #[inline]
+     pub fn mxcsr(&self) -> u32 {
+         self.mxcsr
++            | if self.pending[..self.pending_len]
++                .iter()
++                .flatten()
++                .any(|p| p.inexact())
++            {
++                float::PE
++            } else {
++                0
++            }
++    }
++
++    pub(crate) fn clear_pending(&mut self) {
++        self.pending_len = 0;
++    }
++    pub(crate) fn defer_precision(&mut self, pending: float::PendingPrecision) {
++        if self.pending_len == self.pending.len() {
++            self.mxcsr = self.mxcsr();
++            self.clear_pending();
++        }
++        if self.mxcsr & float::PE == 0 {
++            self.pending[self.pending_len] = Some(pending);
++            self.pending_len += 1;
++        }
+     }
+ 
+     /// Whether MXCSR masks every numeric exception.
+@@ -84,7 +111,15 @@
+         if value & !MXCSR_MASK != 0 {
+             return false;
+         }
++        self.clear_pending();
+         self.mxcsr = value;
+         true
+     }
+ }
++
++impl PartialEq for SimdState {
++    fn eq(&self, other: &Self) -> bool {
++        self.xmm == other.xmm && self.mxcsr() == other.mxcsr()
++    }
++}
++impl Eq for SimdState {}
+--- a/plum/src/simd/fxsave.rs
++++ b/plum/src/simd/fxsave.rs
+@@ -52,7 +52,7 @@
+     put(&mut bytes, 12, &fpu.instruction_selector.to_le_bytes());
+     put(&mut bytes, 16, &fpu.data_pointer.to_le_bytes());
+     put(&mut bytes, 20, &fpu.data_selector.to_le_bytes());
+-    put(&mut bytes, 24, &state.simd.mxcsr.to_le_bytes());
++    put(&mut bytes, 24, &state.simd.mxcsr().to_le_bytes());
+     put(&mut bytes, 28, &MXCSR_MASK.to_le_bytes());
+     for i in 0..8u8 {
+         let raw = fpu.registers[fpu.physical(i)].raw();
+@@ -117,6 +117,7 @@
+         };
+         tags | (tag << (n * 2))
+     });
++    state.simd.clear_pending();
+     state.simd.mxcsr = mxcsr;
+     for (n, xmm) in state.simd.xmm.iter_mut().enumerate() {
+         xmm.copy_from_slice(&bytes[160 + n * 16..176 + n * 16]);
+--- a/plum/src/tests/common_contracts.rs
++++ b/plum/src/tests/common_contracts.rs
+@@ -342,7 +342,7 @@
+                         expected as u32,
+                         "op={op:?} bits={bits:x} rc={rc}"
+                     );
+-                    assert_eq!(state.simd.mxcsr, 0x1fa0 | (rc << 13));
++                    assert_eq!(state.simd.mxcsr(), 0x1fa0 | (rc << 13));
+                 }
+             }
+         }
+@@ -356,7 +356,7 @@
+             state.simd.xmm[1][..4].copy_from_slice(&bits.to_le_bytes());
+             step(&mut state, SimdOp::CVTTSS2SI_Gd_Wd, 0);
+             assert_eq!(
+-                (state.eax().read(), state.simd.mxcsr & 0x3f),
++                (state.eax().read(), state.simd.mxcsr() & 0x3f),
+                 (expected, flags),
+                 "bits={bits:x}"
+             );
+@@ -390,7 +390,7 @@
+                 "mxcsr={mxcsr:x}"
+             );
+             assert_eq!(&state.simd.xmm[0][4..], &[0xa5; 12]);
+-            assert_eq!(state.simd.mxcsr & 0x3f, flags, "mxcsr={mxcsr:x}");
++            assert_eq!(state.simd.mxcsr() & 0x3f, flags, "mxcsr={mxcsr:x}");
+         }
+     }
+ 

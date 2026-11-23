@@ -1,0 +1,188 @@
+{
+  "wasm": [
+    {
+      "name": "cpu_dispatch_bench.wasm",
+      "before_bytes": 375386,
+      "after_bytes": 376138,
+      "before_code": 295791,
+      "after_code": 296140,
+      "identical_code": false,
+      "sha256": [
+        "a51d6e777e6c3040ab95b13e9f66a142caa34f0ee5be7cb5055eb2aae88ec5cd",
+        "7528b6d3af09496eff4177f3ff64bdb0f9d06a17e49c2eee1bda5fc6df177a3e"
+      ]
+    },
+    {
+      "name": "flat_frequency_bench.wasm",
+      "before_bytes": 391172,
+      "after_bytes": 391870,
+      "before_code": 306100,
+      "after_code": 306403,
+      "identical_code": false,
+      "sha256": [
+        "01a325430089814a55ec44d4c311bc22e7c51ba27a9ef2aa432e80f6eb7e09f5",
+        "f00b4ae771169cd7ae3894dccdc2e14f64e4a00b85855cd76c89e47eef0962c8"
+      ]
+    },
+    {
+      "name": "flat_memory_stress.wasm",
+      "before_bytes": 390642,
+      "after_bytes": 391340,
+      "before_code": 307695,
+      "after_code": 307998,
+      "identical_code": false,
+      "sha256": [
+        "7dfab2b6451d8e2f96ba8a16007889f11a5dbf3f54e782b4ece8c63bab784edd",
+        "17e3835e69e4afafd3b1f2b2c5941e02d74d93145c2bc3c016a5ecdb82240498"
+      ]
+    },
+    {
+      "name": "fpu_bench_flat_x87.wasm",
+      "before_bytes": 693341,
+      "after_bytes": 690807,
+      "before_code": 564595,
+      "after_code": 562428,
+      "identical_code": false,
+      "sha256": [
+        "eac36b29f0841ac0642238ce34a958386b61d6ef26ed775b31f278f68d18c8d2",
+        "878f979b66ae93faf42e5c49774e172d3c535129f5b778bfea10d584699b534b"
+      ]
+    },
+    {
+      "name": "fpu_bench_x87.wasm",
+      "before_bytes": 458071,
+      "after_bytes": 458627,
+      "before_code": 364508,
+      "after_code": 364909,
+      "identical_code": false,
+      "sha256": [
+        "0d237d42f6a496c54539e4486716346222a4117985fda52903335b59708dd85a",
+        "e65a32335da0bb8e889d7496277aaa19b34d3f9261b7437aacc2138775cef52a"
+      ]
+    },
+    {
+      "name": "frequency_bench.wasm",
+      "before_bytes": 399869,
+      "after_bytes": 400621,
+      "before_code": 311318,
+      "after_code": 311667,
+      "identical_code": false,
+      "sha256": [
+        "e5683d3a0e193e63252f4695b133f75bc0967dca2ab2d29f581031c8d8a31704",
+        "8f0202fe105c672a2bfac639219a7a523d88c68f856b9272274f6c18e44e9867"
+      ]
+    },
+    {
+      "name": "frequency_bench_flat.wasm",
+      "before_bytes": 399786,
+      "after_bytes": 400581,
+      "before_code": 311159,
+      "after_code": 311508,
+      "identical_code": false,
+      "sha256": [
+        "750c3840ea3c7941c10bb928cba470f19c8440a9592c7469dd0c3217a957888f",
+        "9e718836ec710732a248e6db6db99e490772c831345b03ba10db71b1bdefeb40"
+      ]
+    },
+    {
+      "name": "string_bench.wasm",
+      "before_bytes": 398895,
+      "after_bytes": 399647,
+      "before_code": 313108,
+      "after_code": 313457,
+      "identical_code": false,
+      "sha256": [
+        "75ba2a6afaac709f8ab469906dff77d6280b3c6053057a0e820b66efff6baefb",
+        "0c7d009729ba331e553a11a7147fc6823c010abd89bd8192d01cad02abd4e52f"
+      ]
+    }
+  ],
+  "source_hashes": {
+    "before": {
+      "alu.rs": "47b1dfba6c32aa76edd8b0399a5f439850170daea5bac4ee78616d8b3f06df6e",
+      "cpu.rs": "a17c3515e4c5f925df956716020b4df257a7e0355aebeac464abfc91c3f2ee97",
+      "flags/lazy.rs": "3dc2af5509168ad243fc7ab902941f215df2ab759124bdaa41711cb939546453",
+      "flags.rs": "9154afa78196335226dfddb8f6c71e6d1ec841a31d8fa27ce3c4002df115bf3e",
+      "flat/fpu.rs": "2a1e7d63287253a7b4ac4245665fc0b1b4bfed5ed37ff6ac48a5bdd2ec4c7c41",
+      "flat/memory.rs": "21a6be9d3d81ac4ddafec1c70b560ca07d9b9a0be856b491ecdb661705f3f86b",
+      "flat/mod.rs": "39464734f6110b3a942cdb868e969c8b5d24d0531f6e3876d9b8128415f29be7",
+      "flat/profile.rs": "380c50b4a648f84d4ecb1ac40f186e75c2393896ab64286d0a6ad3206be52b40",
+      "flat/string.rs": "b71e4c35cf0f1d200b8a59367445324322d169bbf2e8c9cf61d84967e8124906",
+      "flat/tracer.rs": "caac4d0800a73ae9c5ae430b52f8f6dc5322af87958655b563cd3fde4084570b",
+      "flat/uop.rs": "a8a5ce700c9f80f562bd2706ed130dd3d8fcb85914cca1a23666b8debb9252b8",
+      "fpu/arithmetic.rs": "b005166cdd855af0776c2cfb185a194ff88bd8f62de622ab3e2fc677ea78b229",
+      "fpu/bcd.rs": "f3b5f9962f1e1c283234a0a50344472bf3216feded2f23955f5fd58d09b8c9af",
+      "fpu/environment.rs": "8a6fc647366c4562013280133455c98634f8aa1491c901b5bfb670828ec778b5",
+      "fpu/exponent.rs": "b62c104b4521cc265fa27f04478a9fb7bf786f82c1b57c1121f574e40053c209",
+      "fpu/logarithm.rs": "5f4c2f5a1d7afaecfc4c2780ad08618ee88406430b89888a226499bb4a41ef62",
+      "fpu/mod.rs": "ebaebb9bd07d009eae3be0113f5b943d048f4ca9c0aa685de6e10b2eef44c519",
+      "fpu/remainder.rs": "055f58241a813e9159b955728b38b325d01af8ad81e33eedb70838fa9819eea2",
+      "fpu/trig.rs": "d9ebe807b17a7d0d6d83c16b3fea8510efc514b0a4d241715ea12666fcc55665",
+      "fpu/uop.rs": "4aa0a8db74adf55d65f1402b995b1f29e2962c280ec0b0b0f809a6484595ec71",
+      "fpu/value.rs": "ceb2c828dfbb5c53f25863816983cf8aa4de8ddf03e643859d723cac8621d4ad",
+      "gpr.rs": "6ab21bf7a732779ff7aedce60f52b5dc94027ef83f9a4d5c8e4dce0f4132d237",
+      "lib.rs": "a1f65a0bf13614c99e77a9f75a7067a3e4dae892e362ec20fea4a1310b8dc16c",
+      "state.rs": "e9348fc7c35d449621ea85dd3a40015d93d42376a2baf36642c755cc72f5d1ad",
+      "tests/bit.rs": "433f06017c84c4ea4cae661172d45cd0a92c1cc506d35214763a32ce6763d3be",
+      "tests/cmpxchg.rs": "20fff88cfddc33ae6a9cab50b95e5a1dff2afb22f6f23608f9abeabc8a989bd9",
+      "tests/fpu.rs": "bca71afe0a5bb7556a6f1bf16ad209fb97c9c4b93c75dc05627a63ff179997ca",
+      "tests/misc.rs": "12582791f267a16cd6cd81a7881aeb36f905bbc91fcc2410f4a6a4de0b65b4b9",
+      "tests/string.rs": "94fa1a8045c58cb00a3efcefbe0116518b4508c52bb82cdc5ba9fab55a0197de",
+      "tests/string_hardware.rs": "e3f1fb1f375d6e1b6e97cf2214b22e913d2327f13e444793cad48b85b850804e",
+      "tests.rs": "a0dc4ff76f33e5396f21712d959b5481cda7ea1f03fdb9dc2c6a279734c687e1",
+      "types.rs": "fd25de87f8cc6f24b233bc4e212ab44886d44ecec311b75dbf63f260e3e24e5d",
+      "ume/fpu.rs": "d6fc784c5c40bdd45b773cd9ebd2a4411803799ad60a1843707413c259a90077",
+      "ume/mod.rs": "5022cbe946236d7ce75828745a15a26afac0e14b90c46242f1c03015833e3aa3",
+      "ume/profile.rs": "a75a87c472e3b58dbb9805ad059338fc3d2b2fa8b8c3876a986d31beedddcf97",
+      "ume/string.rs": "41507508006b2fdfdc254542318026a8221d03cfa9eb999240bafa587ff320fa",
+      "ume/tracer.rs": "e0e47d8ff9af7d84e198b377c0eb26b9bf60ea7ecde08b381204dba99d50c75e",
+      "ume/uop.rs": "8b72c8365a5c6f30d93120bbd6a36f37d0c78824c1aea1da1acf3922215c7460"
+    },
+    "after": {
+      "alu/division.rs": "3715f08981eb57867131921fa7e73346ff89e522000ef6f5c2ed25967c3c901e",
+      "alu.rs": "d88835e0ce37b1204c96f5407212ab61f705aa7d79377579118e1f6c12bfccfe",
+      "cpu.rs": "a17c3515e4c5f925df956716020b4df257a7e0355aebeac464abfc91c3f2ee97",
+      "flags/lazy.rs": "3dc2af5509168ad243fc7ab902941f215df2ab759124bdaa41711cb939546453",
+      "flags.rs": "9154afa78196335226dfddb8f6c71e6d1ec841a31d8fa27ce3c4002df115bf3e",
+      "flat/fpu.rs": "aa6565a59c2fe518fecdfc569547937a426363bf7f48dc2a602db3abf30ffe8f",
+      "flat/memory.rs": "21a6be9d3d81ac4ddafec1c70b560ca07d9b9a0be856b491ecdb661705f3f86b",
+      "flat/mod.rs": "e477d689195a97ea9ff76af62686da8c63c739d6f65b38555a08b87639c07b14",
+      "flat/profile.rs": "bee00744068e2be538695be059eed50c8284a24a8357eea3291a65601e7155c7",
+      "flat/string.rs": "4caadceeff35c6a877599e5ef43f197c01005d7bfc9d2313b5fc062ff93a396a",
+      "flat/tracer.rs": "caac4d0800a73ae9c5ae430b52f8f6dc5322af87958655b563cd3fde4084570b",
+      "flat/uop.rs": "a8a5ce700c9f80f562bd2706ed130dd3d8fcb85914cca1a23666b8debb9252b8",
+      "fpu/arithmetic.rs": "b005166cdd855af0776c2cfb185a194ff88bd8f62de622ab3e2fc677ea78b229",
+      "fpu/bcd.rs": "f3b5f9962f1e1c283234a0a50344472bf3216feded2f23955f5fd58d09b8c9af",
+      "fpu/codec.rs": "d2373acb069195a0b263805760ad0420c6f89dce46ec65bfdd076ac9807e4e31",
+      "fpu/environment.rs": "8a6fc647366c4562013280133455c98634f8aa1491c901b5bfb670828ec778b5",
+      "fpu/exponent.rs": "b62c104b4521cc265fa27f04478a9fb7bf786f82c1b57c1121f574e40053c209",
+      "fpu/logarithm.rs": "5f4c2f5a1d7afaecfc4c2780ad08618ee88406430b89888a226499bb4a41ef62",
+      "fpu/mod.rs": "e9d2247eedb578cf75967899fb0b79c8d6d004697c8419354301a63ff331bb7f",
+      "fpu/ops.rs": "2874ef2c3615257bacd2f0f3c78aaf49b829381e9b71fe70c92472a6781ce70d",
+      "fpu/register_ops.rs": "40f4ee4cc51a719e05ad0b12c5a2c4e094f7b214e48c90e85b65f92c855000d5",
+      "fpu/remainder.rs": "055f58241a813e9159b955728b38b325d01af8ad81e33eedb70838fa9819eea2",
+      "fpu/trig.rs": "d9ebe807b17a7d0d6d83c16b3fea8510efc514b0a4d241715ea12666fcc55665",
+      "fpu/uop.rs": "4aa0a8db74adf55d65f1402b995b1f29e2962c280ec0b0b0f809a6484595ec71",
+      "fpu/value.rs": "ceb2c828dfbb5c53f25863816983cf8aa4de8ddf03e643859d723cac8621d4ad",
+      "gpr.rs": "6ab21bf7a732779ff7aedce60f52b5dc94027ef83f9a4d5c8e4dce0f4132d237",
+      "lib.rs": "09d9a5fd5b502d70a57957d8f0a2e8c9024c4ba91f10a7e41a6709ec328d644e",
+      "profile_support.rs": "5458bc9f01ab99b811a8284dcb04b8dab7a7b4836f26d7daeead50b0a9df4988",
+      "state.rs": "e9348fc7c35d449621ea85dd3a40015d93d42376a2baf36642c755cc72f5d1ad",
+      "string_ops.rs": "27da33ef93d846cc641e6ec49d213dc6d41a5dc67a9cb52eafce71da3242dc45",
+      "tests/bit.rs": "433f06017c84c4ea4cae661172d45cd0a92c1cc506d35214763a32ce6763d3be",
+      "tests/cmpxchg.rs": "20fff88cfddc33ae6a9cab50b95e5a1dff2afb22f6f23608f9abeabc8a989bd9",
+      "tests/fpu.rs": "bca71afe0a5bb7556a6f1bf16ad209fb97c9c4b93c75dc05627a63ff179997ca",
+      "tests/misc.rs": "12582791f267a16cd6cd81a7881aeb36f905bbc91fcc2410f4a6a4de0b65b4b9",
+      "tests/string.rs": "94fa1a8045c58cb00a3efcefbe0116518b4508c52bb82cdc5ba9fab55a0197de",
+      "tests/string_hardware.rs": "e3f1fb1f375d6e1b6e97cf2214b22e913d2327f13e444793cad48b85b850804e",
+      "tests.rs": "a0dc4ff76f33e5396f21712d959b5481cda7ea1f03fdb9dc2c6a279734c687e1",
+      "types.rs": "fd25de87f8cc6f24b233bc4e212ab44886d44ecec311b75dbf63f260e3e24e5d",
+      "ume/fpu.rs": "522db7b9aa2c33193cab29768fa0a495a91da0a03b661be95165daca3baabb43",
+      "ume/mod.rs": "8c381918888b94a55490f4061a74231a29b7c8c8ece14736acdef10e041d49ab",
+      "ume/profile.rs": "7cb8d9621be33429228ae50ee406b5e67157d6ebff8b71555646a8a9e92120df",
+      "ume/string.rs": "392e0196c56f7747cc9fa11c6a17aac7b03022945b28d2f7718ad584bd94c685",
+      "ume/tracer.rs": "e0e47d8ff9af7d84e198b377c0eb26b9bf60ea7ecde08b381204dba99d50c75e",
+      "ume/uop.rs": "8b72c8365a5c6f30d93120bbd6a36f37d0c78824c1aea1da1acf3922215c7460"
+    }
+  }
+}

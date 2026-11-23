@@ -1,0 +1,17 @@
+
+[tasks.clean]
+confirm = "Are you sure?"
+description = "Clean the build artifacts"
+run = "make clean"
+
+[tasks.update]
+description = "Update the dependencies"
+run = "make update"
+
+[tasks.test]
+description = "Run the test"
+run = "make test"
+
+[tasks.doc]
+description = "Generate documentation"
+run = "make doc"

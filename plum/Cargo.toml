@@ -1,0 +1,50 @@
+[package]
+name = "plum"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ir86 = { path = "../ir86" }
+paste = { version = "1.0" }
+libm = { version = "0.2", optional = true }
+
+[features]
+default = ["x87", "sse"]
+x87 = ["dep:libm"]
+# SSE/SSE2 and MMX, including their CPUID feature bits.
+sse = ["x87"]
+uop-profile = []
+# Optional trace-local flag elision on both engines. Analysis-only profiling is Harvard-specific.
+flag-elision-analysis = []
+flag-elision = ["flag-elision-analysis"]
+
+[[example]]
+name = "flat_frequency_bench"
+
+[[example]]
+name = "flat_memory_bench"
+
+[[example]]
+name = "flat_memory_probe"
+
+[[example]]
+name = "flat_memory_stress"
+
+[[example]]
+name = "linux32"
+
+[[example]]
+name = "fpu_bench"
+required-features = ["x87"]
+
+[[example]]
+name = "simd_probe"
+required-features = ["sse"]
+
+[[example]]
+name = "simd_bench"
+required-features = ["sse"]
+
+[[example]]
+name = "floating_flags_bench"
+required-features = ["sse"]

@@ -1,0 +1,271 @@
+--- a/plum/src/flags.rs
++++ b/plum/src/flags.rs
+@@ -254,6 +254,15 @@
+         self.inner.valid_mask = Flags::ZERO;
+     }
+ 
++    /// Floating-point compares overwrite every arithmetic flag. Discard the
++    /// previous lazy operation without evaluating flags that will be replaced.
++    #[inline]
++    pub(crate) fn set_compare_result(&mut self, cf: bool, zf: bool, pf: bool) {
++        self.inner.dynamic_value =
++            Flags::from_bits(u32::from(cf) | (u32::from(pf) << 2) | (u32::from(zf) << 6));
++        self.inner.valid_mask = FlagSet::DYNAMIC_VALUE_MASK;
++    }
++
+     /// Resolves lazy flags and returns the final value of the FLAGS register.
+     #[inline]
+     pub fn resolve(&mut self) -> Flags {
+--- a/plum/src/fpu/register_ops.rs
++++ b/plum/src/fpu/register_ops.rs
+@@ -1,11 +1,12 @@
+ //! Register-only x87 secondary dispatch. Instruction pointers remain engine-owned.
+ use core::cmp::Ordering;
+ 
++use ir86::encoding::CC;
++
+ use super::ops::{arithmetic, square_root};
+ use super::uop::{FpuMinorUop, FpuOp, POP};
+ use super::{DENORMAL, FpuState, FpuValue, INDEFINITE, INVALID, Raw80, UnsupportedFpu};
+ use crate::gpr::PartialRegister;
+-use crate::prelude::Flags;
+ use crate::state::ProcessorState;
+ 
+ pub(crate) fn compare(state: &mut ProcessorState, rhs: FpuValue, quiet: bool, integer_flags: bool) {
+@@ -28,17 +29,7 @@
+     let less = unordered || order == Ordering::Less;
+     let equal = unordered || order == Ordering::Equal;
+     if integer_flags {
+-        state.flags_mut().resolve();
+-        for (flag, value) in [
+-            (Flags::CF, less),
+-            (Flags::ZF, equal),
+-            (Flags::PF, unordered),
+-            (Flags::OF, false),
+-            (Flags::SF, false),
+-            (Flags::AF, false),
+-        ] {
+-            state.flags_mut().set_dynamic(flag, value);
+-        }
++        state.flags_mut().set_compare_result(less, equal, unordered);
+     } else {
+         fpu.status = (fpu.status & !0x4500)
+             | if less { 0x100 } else { 0 }
+@@ -70,16 +61,13 @@
+             }
+         }
+         ConditionalMove => {
+-            let flags = state.flags_mut().resolve();
+-            let cf = flags.contains(Flags::CF);
+-            let zf = flags.contains(Flags::ZF);
+-            let pf = flags.contains(Flags::PF);
+-            let mut take = match (op.arg >> 3) & 3 {
+-                0 => cf,
+-                1 => zf,
+-                2 => cf || zf,
+-                _ => pf,
++            let cc = match (op.arg >> 3) & 3 {
++                0 => CC::C,
++                1 => CC::Z,
++                2 => CC::BE,
++                _ => CC::P,
+             };
++            let mut take = state.flags_mut().eval_cc(cc);
+             take ^= op.arg & 0x20 != 0;
+             let fpu = &mut state.fpu;
+             fpu.status &= !0x200;
+--- a/plum/src/simd/exec.rs
++++ b/plum/src/simd/exec.rs
+@@ -8,7 +8,6 @@
+ use super::float::{self, Arith, Env, F32, F64, Format};
+ use super::lanes::{self, Lane, Shift, get, put};
+ use super::{MXCSR_EXCEPTION_MASKS, MXCSR_MASK, mmx};
+-use crate::flags::Flags;
+ use crate::gpr::PartialRegister;
+ use crate::state::{ProcessorState, RtReg};
+ 
+@@ -529,12 +528,7 @@
+                 let w = f.bytes();
+                 let a = get(&state.simd.xmm[reg], 0, w);
+                 let (zf, pf, cf) = float::compare_flags(f, &mut env, quiet, a, get(&src, 0, w));
+-                state.flags_mut().resolve();
+-                let flags = state.flags_mut();
+-                flags.clear(Flags::OF | Flags::SF | Flags::AF);
+-                flags.set_dynamic(Flags::ZF, zf);
+-                flags.set_dynamic(Flags::PF, pf);
+-                flags.set_dynamic(Flags::CF, cf);
++                state.flags_mut().set_compare_result(cf, zf, pf);
+             }
+ 
+             // Conversions.
+--- a/plum/src/simd/float.rs
++++ b/plum/src/simd/float.rs
+@@ -246,7 +246,11 @@
+     if f.is_snan(a) || f.is_snan(b) {
+         env.flags |= IE;
+     }
+-    if f.is_nan(a) { a | f.quiet() } else { b | f.quiet() }
++    if f.is_nan(a) {
++        a | f.quiet()
++    } else {
++        b | f.quiet()
++    }
+ }
+ 
+ fn invalid(f: Format, env: &mut Env) -> u64 {
+@@ -279,7 +283,9 @@
+         ($lanes:ident, $bits:ty, $n:literal) => {{
+             const W: usize = core::mem::size_of::<$bits>();
+             let load = |bytes: &[u8; 16]| -> [$bits; $n] {
+-                core::array::from_fn(|i| <$bits>::from_le_bytes(bytes[i * W..i * W + W].try_into().unwrap()))
++                core::array::from_fn(|i| {
++                    <$bits>::from_le_bytes(bytes[i * W..i * W + W].try_into().unwrap())
++                })
+             };
+             let r = $lanes::<$n>(env, op, load(dst), load(src));
+             for (i, r) in r.iter().enumerate() {
+@@ -304,13 +310,24 @@
+ /// through host float registers.
+ macro_rules! host_lanes {
+     ($name:ident, $t:ty, $bits:ty, $f:expr, $sqrt:path, $exact:expr) => {
+-        fn $name<const N: usize>(env: &mut Env, op: Arith, a: [$bits; N], b: [$bits; N]) -> [$bits; N] {
++        fn $name<const N: usize>(
++            env: &mut Env,
++            op: Arith,
++            a: [$bits; N],
++            b: [$bits; N],
++        ) -> [$bits; N] {
+             /// All `N` lanes on the host, or `None` (nothing changed) when
+             /// a lane does not qualify.
+             #[inline(always)]
+-            fn host<const N: usize>(env: &mut Env, op: Arith, a: [$bits; N], b: [$bits; N]) -> Option<[$bits; N]> {
++            fn host<const N: usize>(
++                env: &mut Env,
++                op: Arith,
++                a: [$bits; N],
++                b: [$bits; N],
++            ) -> Option<[$bits; N]> {
+                 let inputs = (0..N).all(|i| {
+-                    $f.is_normal_or_zero(u64::from(b[i])) && (op == Arith::Sqrt || $f.is_normal_or_zero(u64::from(a[i])))
++                    $f.is_normal_or_zero(u64::from(b[i]))
++                        && (op == Arith::Sqrt || $f.is_normal_or_zero(u64::from(a[i])))
+                 });
+                 if !inputs {
+                     return None;
+@@ -339,18 +356,24 @@
+                 if !results {
+                     return None;
+                 }
+-                let inexact = match op {
+-                    // TwoSum: the rounding error of r = x + y, exactly.
+-                    Arith::Add | Arith::Sub => (0..N).any(|i| {
+-                        let y = if op == Arith::Sub { -y[i] } else { y[i] };
+-                        let yy = r[i] - x[i];
+-                        (x[i] - (r[i] - yy)) + (y - yy) != 0.0
+-                    }),
+-                    _ => {
+-                        let exact: fn(Arith, $t, $t, $t) -> bool = $exact;
+-                        (0..N).any(|i| !exact(op, x[i], y[i], r[i]))
+-                    }
+-                };
++                // PE is sticky. With masked exceptions, detecting it again
++                // cannot change the architectural state or this result.
++                let precision_known = env.mxcsr & super::MXCSR_EXCEPTION_MASKS
++                    == super::MXCSR_EXCEPTION_MASKS
++                    && (env.mxcsr | env.flags) & PE != 0;
++                let inexact = !precision_known
++                    && match op {
++                        // TwoSum: the rounding error of r = x + y, exactly.
++                        Arith::Add | Arith::Sub => (0..N).any(|i| {
++                            let y = if op == Arith::Sub { -y[i] } else { y[i] };
++                            let yy = r[i] - x[i];
++                            (x[i] - (r[i] - yy)) + (y - yy) != 0.0
++                        }),
++                        _ => {
++                            let exact: fn(Arith, $t, $t, $t) -> bool = $exact;
++                            (0..N).any(|i| !exact(op, x[i], y[i], r[i]))
++                        }
++                    };
+                 if inexact {
+                     env.flags |= PE;
+                 }
+@@ -361,11 +384,18 @@
+             /// in software.
+             #[cold]
+             #[inline(never)]
+-            fn mixed<const N: usize>(env: &mut Env, op: Arith, a: [$bits; N], b: [$bits; N]) -> [$bits; N] {
++            fn mixed<const N: usize>(
++                env: &mut Env,
++                op: Arith,
++                a: [$bits; N],
++                b: [$bits; N],
++            ) -> [$bits; N] {
+                 let fast = env.fast();
+-                core::array::from_fn(|i| match fast.then(|| host::<1>(env, op, [a[i]], [b[i]])).flatten() {
+-                    Some([r]) => r,
+-                    None => cold($f, env, op, u64::from(a[i]), u64::from(b[i])) as $bits,
++                core::array::from_fn(|i| {
++                    match fast.then(|| host::<1>(env, op, [a[i]], [b[i]])).flatten() {
++                        Some([r]) => r,
++                        None => cold($f, env, op, u64::from(a[i]), u64::from(b[i])) as $bits,
++                    }
+                 })
+             }
+ 
+@@ -512,7 +542,11 @@
+                 return f.zero(rc == 1);
+             }
+             // A sticky remainder belongs to the subtracted operand.
+-            let (diff, sticky) = if sticky { (diff - 1, true) } else { (diff, false) };
++            let (diff, sticky) = if sticky {
++                (diff - 1, true)
++            } else {
++                (diff, false)
++            };
+             if diff == 0 {
+                 return round_pack(f, env, negative, 1, e - 1, true);
+             }
+@@ -625,7 +659,13 @@
+ 
+ /// (U)COMISS/(U)COMISD: (ZF, PF, CF). COMIS signals IE on any NaN, UCOMIS
+ /// only on an SNaN.
+-pub(crate) fn compare_flags(f: Format, env: &mut Env, quiet: bool, a: u64, b: u64) -> (bool, bool, bool) {
++pub(crate) fn compare_flags(
++    f: Format,
++    env: &mut Env,
++    quiet: bool,
++    a: u64,
++    b: u64,
++) -> (bool, bool, bool) {
+     if f.is_nan(a) || f.is_nan(b) {
+         if !quiet || f.is_snan(a) || f.is_snan(b) {
+             env.flags |= IE;
+@@ -670,7 +710,14 @@
+     if value == 0 {
+         return 0;
+     }
+-    round_pack(to, env, value < 0, u128::from(value.unsigned_abs()), 0, false)
++    round_pack(
++        to,
++        env,
++        value < 0,
++        u128::from(value.unsigned_abs()),
++        0,
++        false,
++    )
+ }
+ 
+ /// To a signed 32-bit integer, rounded by MXCSR.RC or truncated. A NaN or
+@@ -705,7 +752,11 @@
+         env.flags |= PE;
+     }
+     let value = magnitude as u32;
+-    if negative { value.wrapping_neg() } else { value }
++    if negative {
++        value.wrapping_neg()
++    } else {
++        value
++    }
+ }
+ 
+ /// RCPSS/RSQRTSS approximations. They ignore MXCSR: no flags, denormal
