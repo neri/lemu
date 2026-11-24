@@ -189,7 +189,9 @@ impl ProcessorState {
 
     #[inline]
     pub fn clone_from(&mut self, other: &ProcessorState) {
+        let cpuid = self.cpuid.clone();
         *self = other.clone();
+        self.cpuid = cpuid;
     }
 
     #[inline]

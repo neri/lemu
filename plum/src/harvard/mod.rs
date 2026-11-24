@@ -101,7 +101,7 @@ impl Emulator for HarvardUME {
             Offset32(state.eip().read()),
             Offset32(state.esp().read()),
         )
-        .unwrap();
+        .map_err(|_| Exception::OutOfCode)?;
         flat.state_mut().clone_from(&state);
 
         Ok(flat)
@@ -150,6 +150,7 @@ impl HarvardUME {
         let state =
             ProcessorState::new(Generation::LATEST, MANUFACTURER_STRING, Self::BRAND_STRING);
         state.esp().write(stack_pointer.0);
+        state.eip().write(entry.0);
 
         Self {
             #[cfg(feature = "uop-profile")]
